@@ -1,0 +1,14 @@
+# data files (too large for git)
+data/
+models/*.pkl
+models/*.joblib
+
+# python
+__pycache__/
+*.pyc
+.env
+venv/
+.ipynb_checkpoints/
+
+# system
+.DS_Store
