@@ -58,8 +58,8 @@ class PredictionResponse(BaseModel):
 #helper building feature rows
 def build_feature_row(data: HouseFeatures) -> pd.DataFrame:
     d = data.dict()
- 
-    # derived features — same as Day 3
+
+    # derived features
     d["TotalSF"]      = d["TotalBsmtSF"]
     d["HouseAge"]     = 2010 - d["YearBuilt"]
     d["WasRemodeled"] = int(d["YearRemodAdd"] != d["YearBuilt"])
@@ -69,25 +69,38 @@ def build_feature_row(data: HouseFeatures) -> pd.DataFrame:
     d["HasBasement"]  = int(d["TotalBsmtSF"] > 0)
     d["HasFireplace"] = int(d["Fireplaces"] > 0)
     d["HasPool"]      = 0
- 
-    # handle neighborhood one-hot encoding
+
+    # neighborhood one-hot
     neighborhood_col = f"Neighborhood_{d['Neighborhood']}"
     del d["Neighborhood"]
- 
+
     row = pd.DataFrame([d])
- 
-    # add neighborhood column if it exists in training features
+
     if neighborhood_col in feature_cols:
         row[neighborhood_col] = 1
- 
-    # reindex to match training columns exactly
+
+    # apply log1p to skewed columns — CRITICAL, must match Day 3
+    skewed_cols = [
+        "LotArea", "LotFrontage", "GrLivArea", "TotalBsmtSF",
+        "1stFlrSF", "2ndFlrSF", "GarageArea", "WoodDeckSF",
+        "OpenPorchSF", "TotalSF", "MasVnrArea", "BsmtFinSF1",
+        "LowQualFinSF", "ScreenPorch", "EnclosedPorch", "MiscVal"
+    ]
+    for col in skewed_cols:
+        if col in row.columns:
+            row[col] = np.log1p(row[col])
+
+    print("LotArea after log1p:", row["LotArea"].values[0])  # should be ~9.0
+
+    # reindex to match training columns
     row = row.reindex(columns=feature_cols, fill_value=0)
- 
+    row = row.apply(pd.to_numeric, errors="coerce").fillna(0)
+
     return row
  
 
 #routes
-app.get("/")
+@app.get("/")
 def root():
     return {
         "message": "House Price Prediction API",
@@ -105,45 +118,23 @@ def health():
 def predict(features: HouseFeatures):
     try:
         row = build_feature_row(features)
- 
-        row_scaled = scaler.transform(row)
-        print("\n===== SCALED VALUES =====")
-        print(row_scaled[:, :10])
-        
-        print("\n===== INPUT ROW =====")
-        print(row.T)
 
-        print("\n===== SHAPE =====")
-        print(row.shape)
+        xgb_pred   = xgb_model.predict(row)[0]
+        price      = float(np.expm1(xgb_pred))
+        price_low  = float(np.expm1(xgb_pred - 0.1159))
+        price_high = float(np.expm1(xgb_pred + 0.1159))
 
-        print("\n===== FIRST 20 FEATURES =====")
-        print(row.iloc[:, :20])
-        ridge_pred = ridge.predict(row_scaled)[0]
-        xgb_pred = xgb_model.predict(row)[0]
+        print(f"XGBoost prediction: {xgb_pred:.4f} → ${price:,.0f}")
 
-        # Debug prints
-        print("Ridge prediction:", ridge_pred)
-        print("XGBoost prediction:", xgb_pred)
-
-        blended_log = (ridge_pred + xgb_pred) / 2
-
-        print("Blended prediction:", blended_log)
-        print("Price after expm1:", np.expm1(blended_log))
-
-        price = float(np.expm1(blended_log))
-        price_low = float(np.expm1(blended_log - 0.0694))
-        price_high = float(np.expm1(blended_log + 0.0694))
-        price_low    = float(np.expm1(blended_log - 0.0694))
-        price_high   = float(np.expm1(blended_log + 0.0694))
- 
-       
         return PredictionResponse(
             predicted_price=      round(price, 2),
             predicted_price_low=  round(price_low, 2),
             predicted_price_high= round(price_high, 2),
-            model_rmse=           0.0694
-         )
- 
+            model_rmse=           0.1159
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
         
  
     except Exception as e:

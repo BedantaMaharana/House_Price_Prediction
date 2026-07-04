@@ -65,7 +65,22 @@ def build_feature_row(data: dict, feature_cols: list) -> pd.DataFrame:
 
     if neighborhood_col and neighborhood_col in feature_cols:
         row[neighborhood_col] = 1
- 
+    # apply log1p to skewed numeric columns — same as Day 3
+    skewed_cols = [
+        "LotArea", "LotFrontage", "GrLivArea", "TotalBsmtSF",
+        "1stFlrSF", "2ndFlrSF", "GarageArea", "WoodDeckSF",
+        "OpenPorchSF", "TotalSF", "MasVnrArea", "BsmtFinSF1",
+        "LowQualFinSF", "ScreenPorch", "EnclosedPorch", "MiscVal"
+    ]
+
+    for col in skewed_cols:
+        if col in row.columns:
+            row[col] = np.log1p(row[col])
+    print("LotArea after log1p:", row["LotArea"].values[0])  # should print ~9.0
+
+    # reindex to match training columns exactly
+    row = row.reindex(columns=feature_cols, fill_value=0)
+    row = row.apply(pd.to_numeric, errors="coerce").fillna(0)
     row = row.reindex(columns=feature_cols, fill_value=0)
     print("Row after reindex:", row.shape)  # DEBUG
     print("Row sum:", row.sum().sum())  # DEBUG
