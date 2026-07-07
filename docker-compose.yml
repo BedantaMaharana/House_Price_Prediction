@@ -1,0 +1,17 @@
+# ============================================================
+# docker-compose.yml — House Price Prediction
+# ============================================================
+
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: house-price-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models  # mount models folder so you can update without rebuilding
+    environment:
+      - PYTHONUNBUFFERED=1    # ensures print statements show in docker logs
+    restart: unless-stopped   # auto-restart if container crashes
