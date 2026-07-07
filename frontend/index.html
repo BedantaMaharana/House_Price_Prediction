@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>House Price Estimator</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#F7F5F0; --surface:#FFFFFF; --surface-1:#F0EDE8; --border:#E2DDD6;
+      --text:#1A1814; --muted:#7A7468; --accent:#2B4D3F; --accent-lt:#EAF0ED;
+      --accent-bd:#B5CFC8; --success:#2D7A4F; --warning:#B87A10; --danger:#C0392B;
+      --radius:10px;
+    }
+    body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    header { background:var(--accent); color:#fff; padding:32px; display:flex; align-items:center; gap:16px; }
+    .header-icon { width:44px; height:44px; background:rgba(255,255,255,0.15); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+    header h1 { font-family:'DM Serif Display',serif; font-size:1.6rem; line-height:1.1; }
+    header p { font-size:13px; opacity:0.7; margin-top:3px; }
+    .app { display:grid; grid-template-columns:1fr 360px; min-height:calc(100vh - 108px); }
+    .left { padding:28px 32px; border-right:1px solid var(--border); overflow-y:auto; }
+    .section-label { font-size:11px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:20px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    .field { margin-bottom:22px; }
+    .field-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+    .field-lbl { font-size:13px; font-weight:500; color:var(--text); }
+    .field-val { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; color:var(--accent); background:var(--accent-lt); padding:2px 8px; border-radius:6px; min-width:52px; text-align:center; }
+    input[type="range"] { width:100%; height:4px; accent-color:var(--accent); cursor:pointer; }
+    select { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:14px; color:var(--text); background:var(--surface); margin-top:6px; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A7468' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
+    select:focus { outline:2px solid var(--accent); outline-offset:1px; }
+    .divider { height:1px; background:var(--border); margin:28px 0; }
+    .right { padding:28px 24px; background:var(--surface); position:sticky; top:0; height:calc(100vh - 108px); overflow-y:auto; display:flex; flex-direction:column; gap:16px; }
+    .price-box { background:var(--accent-lt); border:1px solid var(--accent-bd); border-radius:12px; padding:20px; text-align:center; }
+    .price-tag { font-size:10px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--accent); margin-bottom:8px; }
+    .price-num { font-family:'DM Serif Display',serif; font-size:2.4rem; color:var(--accent); line-height:1; transition:all 0.3s ease; }
+    .price-range { font-size:12px; color:var(--muted); margin-top:8px; font-family:'DM Mono',monospace; }
+    .bar-track { height:5px; background:var(--border); border-radius:99px; overflow:hidden; margin-bottom:6px; }
+    .bar-fill { height:100%; background:var(--accent); border-radius:99px; width:50%; transition:width 0.5s cubic-bezier(.4,0,.2,1); }
+    .bar-ends { display:flex; justify-content:space-between; font-size:11px; font-family:'DM Mono',monospace; color:var(--muted); }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+    .stat { background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:12px 8px; text-align:center; }
+    .stat-v { font-family:'DM Mono',monospace; font-size:12px; font-weight:500; color:var(--text); }
+    .stat-l { font-size:10px; color:var(--muted); margin-top:3px; }
+    .status { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); }
+    .dot { width:7px; height:7px; border-radius:50%; background:var(--border); flex-shrink:0; transition:background 0.3s; }
+    .dot.loading { background:var(--warning); animation:pulse 1s ease-in-out infinite; }
+    .dot.ok { background:var(--success); }
+    .dot.err { background:var(--danger); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .err-box { background:#FDF2F2; border:1px solid #F5C6CB; border-radius:var(--radius); padding:10px 12px; font-size:12px; color:var(--danger); line-height:1.5; display:none; }
+    .note { font-size:11px; color:var(--muted); line-height:1.6; margin-top:auto; }
+    footer { background:var(--surface); border-top:1px solid var(--border); padding:14px 32px; font-size:12px; color:var(--muted); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+    @media(max-width:700px) {
+      .app { grid-template-columns:1fr; }
+      .right { position:static; height:auto; border-top:1px solid var(--border); order:-1; }
+      header { padding:20px; }
+      .left { padding:20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">🏠</div>
+  <div>
+    <h1>House Price Estimator</h1>
+    <p>Adjust the sliders — predictions update automatically</p>
+  </div>
+</header>
+
+<div class="app">
+
+  <div class="left">
+    <div class="section-label">Numeric features</div>
+
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Overall quality</span><span class="field-val" id="v-qual">7</span></div>
+      <input type="range" id="qual" min="1" max="10" value="7" step="1" oninput="upd('qual',this.value,this.value);go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Above-ground living area (sqft)</span><span class="field-val" id="v-liv">1,500</span></div>
+      <input type="range" id="liv" min="300" max="5000" value="1500" step="50" oninput="upd('liv',this.value,parseInt(this.value).toLocaleString());go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Lot size (sqft)</span><span class="field-val" id="v-lot">8,000</span></div>
+      <input type="range" id="lot" min="1000" max="50000" value="8000" step="500" oninput="upd('lot',this.value,parseInt(this.value).toLocaleString());go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Basement area (sqft)</span><span class="field-val" id="v-bsmt">800</span></div>
+      <input type="range" id="bsmt" min="0" max="3000" value="800" step="50" oninput="upd('bsmt',this.value,parseInt(this.value).toLocaleString());go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Garage area (sqft)</span><span class="field-val" id="v-garea">400</span></div>
+      <input type="range" id="garea" min="0" max="1200" value="400" step="25" oninput="upd('garea',this.value,parseInt(this.value).toLocaleString());go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Garage capacity (cars)</span><span class="field-val" id="v-gcars">2</span></div>
+      <input type="range" id="gcars" min="0" max="4" value="2" step="1" oninput="upd('gcars',this.value,this.value);go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Full bathrooms</span><span class="field-val" id="v-fbath">2</span></div>
+      <input type="range" id="fbath" min="0" max="4" value="2" step="1" oninput="upd('fbath',this.value,this.value);go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Half bathrooms</span><span class="field-val" id="v-hbath">1</span></div>
+      <input type="range" id="hbath" min="0" max="2" value="1" step="1" oninput="upd('hbath',this.value,this.value);go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Fireplaces</span><span class="field-val" id="v-fire">1</span></div>
+      <input type="range" id="fire" min="0" max="3" value="1" step="1" oninput="upd('fire',this.value,this.value);go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Year built</span><span class="field-val" id="v-ybuilt">2000</span></div>
+      <input type="range" id="ybuilt" min="1900" max="2025" value="2000" step="1" oninput="upd('ybuilt',this.value,this.value);go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Year remodeled</span><span class="field-val" id="v-yremod">2005</span></div>
+      <input type="range" id="yremod" min="1900" max="2025" value="2005" step="1" oninput="upd('yremod',this.value,this.value);go()">
+    </div>
+    <div class="field">
+      <div class="field-top"><span class="field-lbl">Exterior quality (1–5)</span><span class="field-val" id="v-exq">3 — average</span></div>
+      <input type="range" id="exq" min="1" max="5" value="3" step="1" oninput="updExq(this.value);go()">
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Categorical features</div>
+
+    <div class="field">
+      <div class="field-lbl" style="margin-bottom:6px">Neighborhood</div>
+      <select id="nbhd" onchange="go()">
+        <option>Blmngtn</option><option>Blueste</option><option>BrDale</option>
+        <option>BrkSide</option><option>ClearCr</option><option selected>CollgCr</option>
+        <option>Crawfor</option><option>Edwards</option><option>Gilbert</option>
+        <option>IDOTRR</option><option>MeadowV</option><option>Mitchel</option>
+        <option>NAmes</option><option>NPkVill</option><option>NWAmes</option>
+        <option>NoRidge</option><option>NridgHt</option><option>OldTown</option>
+        <option>SWISU</option><option>Sawyer</option><option>SawyerW</option>
+        <option>Somerst</option><option>StoneBr</option><option>Timber</option>
+        <option>Veenker</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="section-label">Live prediction</div>
+
+    <div class="price-box">
+      <div class="price-tag">Estimated sale price</div>
+      <div class="price-num" id="pval">—</div>
+      <div class="price-range" id="prange">move a slider to predict</div>
+    </div>
+
+    <div>
+      <div class="bar-track"><div class="bar-fill" id="bfill"></div></div>
+      <div class="bar-ends"><span id="blo">—</span><span>range</span><span id="bhi">—</span></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-v" id="slo">—</div><div class="stat-l">Low</div></div>
+      <div class="stat"><div class="stat-v" id="smid">—</div><div class="stat-l">Predicted</div></div>
+      <div class="stat"><div class="stat-v" id="shi">—</div><div class="stat-l">High</div></div>
+    </div>
+
+    <div class="err-box" id="errt"></div>
+
+    <div class="status">
+      <div class="dot" id="sdot"></div>
+      <span id="stxt">ready — move a slider</span>
+    </div>
+
+    <div class="note">
+      Predictions update 0.8s after you stop adjusting.<br>
+      First request may take ~30s to wake the API (free tier).
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>Powered by XGBoost · Ames Housing Dataset</span>
+  <a href="https://github.com/YOUR_USERNAME/House_Price_Prediction" target="_blank">GitHub →</a>
+  <a href="https://house-price-prediction-mk3c.onrender.com/docs" target="_blank">API docs →</a>
+</footer>
+
+<script>
+  const API  = "https://house-price-prediction-mk3c.onrender.com/predict";
+  const fmt  = n => "$" + Math.round(n).toLocaleString("en-US");
+  const g    = id => document.getElementById(id);
+  const exqL = {1:"1 — poor",2:"2 — fair",3:"3 — average",4:"4 — good",5:"5 — excellent"};
+  let timer  = null;
+
+  function upd(id, raw, display) { g("v-"+id).textContent = display; }
+  function updExq(val) { g("v-exq").textContent = exqL[val] || val; }
+  function setStatus(state, txt) { g("sdot").className="dot "+state; g("stxt").textContent=txt; }
+
+  function go() {
+    clearTimeout(timer);
+    setStatus("loading","waiting…");
+    timer = setTimeout(predict, 800);
+  }
+
+  async function predict() {
+    setStatus("loading","fetching…");
+    g("errt").style.display = "none";
+
+    const payload = {
+      OverallQual:  parseInt(g("qual").value),
+      GrLivArea:    parseFloat(g("liv").value),
+      LotArea:      parseFloat(g("lot").value),
+      TotalBsmtSF:  parseFloat(g("bsmt").value),
+      GarageArea:   parseFloat(g("garea").value),
+      GarageCars:   parseInt(g("gcars").value),
+      FullBath:     parseInt(g("fbath").value),
+      HalfBath:     parseInt(g("hbath").value),
+      Fireplaces:   parseInt(g("fire").value),
+      YearBuilt:    parseInt(g("ybuilt").value),
+      YearRemodAdd: parseInt(g("yremod").value),
+      ExterQual:    parseInt(g("exq").value),
+      Neighborhood: g("nbhd").value
+    };
+
+    try {
+      const r = await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      if(!r.ok) throw new Error("API error "+r.status);
+      const d = await r.json();
+
+      g("pval").textContent   = fmt(d.predicted_price);
+      g("prange").textContent = fmt(d.predicted_price_low)+" – "+fmt(d.predicted_price_high);
+      g("slo").textContent    = fmt(d.predicted_price_low);
+      g("smid").textContent   = fmt(d.predicted_price);
+      g("shi").textContent    = fmt(d.predicted_price_high);
+      g("blo").textContent    = fmt(d.predicted_price_low);
+      g("bhi").textContent    = fmt(d.predicted_price_high);
+
+      const spread = d.predicted_price_high - d.predicted_price_low;
+      const pct = spread>0 ? Math.min(90,Math.max(10,(d.predicted_price-d.predicted_price_low)/spread*100)) : 50;
+      g("bfill").style.width = pct+"%";
+
+      setStatus("ok","updated");
+    } catch(e) {
+      setStatus("err","error");
+      const eb = g("errt");
+      eb.textContent = "Couldn't reach the API — it may be waking up. Wait 30s and move a slider to retry. ("+e.message+")";
+      eb.style.display = "block";
+    }
+  }
+</script>
+
+</body>
+</html>
