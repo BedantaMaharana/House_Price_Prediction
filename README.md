@@ -194,6 +194,8 @@ house-price-prediction/
 ├── docker-compose.yml
 ├── requirements.txt
 └── README.md
+├── docs/
+     ├── index.html          ← frontend
 ```
 
 ---
@@ -209,6 +211,11 @@ house-price-prediction/
 4. **Preprocessing must be replicated at inference**: the API replicates every Step 3 transformation (log1p, derived features, encoding) to ensure predictions match training conditions.
 
 ---
+
+##  Live Links
+- **Website:** https:/BedantaMaharana.github.io/House_Price_Prediction/
+- **API:** https://house-price-prediction-mk3c.onrender.com
+- **API Docs:** https://house-price-prediction-mk3c.onrender.com/docs
 
 ## Contact
 
